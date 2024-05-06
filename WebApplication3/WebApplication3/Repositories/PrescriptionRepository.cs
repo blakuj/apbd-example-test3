@@ -33,26 +33,63 @@ public class PrescriptionRepository
    
     
 
-    public async Task<PrescriptionDTO[]> getPrescription(string docLastName)
-{
-    var query = "";
-    if (docLastName == "default")
+    public async Task<PrescriptionDTO[]> getPrescription()
     {
-        query = "SELECT P.IdPrescription as IDPrescription, P.Date as Date,P.DueDate as DueDate," +
+    
+       var query = "SELECT P.IdPrescription as IDPrescription, P.Date as Date,P.DueDate as DueDate," +
                 " Pat.LastName as Patient_Last_Name," +
                 " D.LastName as Doctor_Last_Name" +
                 " from Prescription P join Doctor D on P.IdDoctor = D.IdDoctor join Patient Pat on P.IdPatient = Pat.IdPatient " +
                 " ORDER BY Date desc";
-    }
-    else
+   
+
+    List<PrescriptionDTO> prescriptions = new List<PrescriptionDTO>();
+
+    await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+
+    await using SqlCommand command = new SqlCommand();
+
+    command.Connection = connection;
+    command.CommandText = query;
+
+    await connection.OpenAsync();
+
+    var reader = await command.ExecuteReaderAsync();
+
+    var preIdOrdinal = reader.GetOrdinal("IDPrescription");
+    var preDateOrdinal = reader.GetOrdinal("Date");
+    var preDueDateOrdinal = reader.GetOrdinal("DueDate");
+    var patientLastNameOrdinal = reader.GetOrdinal("Patient_Last_Name");
+    var doctorLastNameOrdinal = reader.GetOrdinal("Doctor_Last_Name");
+
+    while (await reader.ReadAsync())
     {
-        query = "SELECT P.IdPrescription as IDPrescription, P.Date as Date,P.DueDate as DueDate," +
+        PrescriptionDTO prescriptionDto = new PrescriptionDTO()
+        {
+            idPrecsription = reader.GetInt32(preIdOrdinal),
+            date = reader.GetDateTime(preDateOrdinal),
+            dueDate = reader.GetDateTime(preDueDateOrdinal),
+            patientLastName = reader.GetString(patientLastNameOrdinal),
+            doctorLastName = reader.GetString(doctorLastNameOrdinal)
+        };
+        
+        prescriptions.Add(prescriptionDto);
+    }
+
+    return prescriptions.ToArray();
+}
+
+
+    public async Task<PrescriptionDTO[]> getPrescriptionFiltered(string docLastName)
+    {
+   
+       var query = "SELECT P.IdPrescription as IDPrescription, P.Date as Date,P.DueDate as DueDate," +
                 " Pat.LastName as Patient_Last_Name," +
                 " D.LastName as Doctor_Last_Name" +
                 " from Prescription P join Doctor D on P.IdDoctor = D.IdDoctor join Patient Pat on P.IdPatient = Pat.IdPatient " +
-                " WHERE (@docName IS NULL OR D.LastName = @docName)" +
+                " WHERE D.LastName = @docName" +
                 " ORDER BY Date desc";
-    }
+    
 
     List<PrescriptionDTO> prescriptions = new List<PrescriptionDTO>();
 
@@ -90,8 +127,8 @@ public class PrescriptionRepository
 
     return prescriptions.ToArray();
 }
-
-
+    
+    
     public async Task addPrescription(newPrescriptionDTO newPrescriptionDto)
     {
         var query = "Insert into Prescription values (@Date, @DueDate, @IdPatient,@IdDoctor)";

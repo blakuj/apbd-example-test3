@@ -17,15 +17,23 @@ public class PrescriptionController : ControllerBase
 
 
     [HttpGet]
-    [Route("{lastName}")]
-    public async Task<IActionResult> getPrescription(string lastName = "default")
+   
+    public async Task<IActionResult> getPrescription([FromQuery] string? lastName )
     {
-        if (!await _prescriptionRepository.doesDoctorExist(lastName) && lastName != "default")
+        object? prescription;
+        if (lastName==null)
         {
-            return NotFound($"Doctor {lastName} doeas not exist");
+            prescription = await _prescriptionRepository.getPrescription();
         }
-
-        var prescription = await _prescriptionRepository.getPrescription(lastName);
+        else
+        {
+            if (!await _prescriptionRepository.doesDoctorExist(lastName))
+            {
+                return NotFound($"Doctor {lastName} doeas not exist");
+            }
+            prescription = await _prescriptionRepository.getPrescriptionFiltered(lastName);
+        }
+        
         return Ok(prescription);
     }
 
